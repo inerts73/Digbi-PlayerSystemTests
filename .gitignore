@@ -1,0 +1,7 @@
+node_modules/
+coverage.xml
+tests_results.xml
+*.swo
+*.swn
+*.swp
+*.*~

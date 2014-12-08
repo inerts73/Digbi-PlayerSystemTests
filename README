@@ -1,0 +1,45 @@
+# DigBil_DSCS_fake
+
+	This project is a fake DSCS server for player integration tests
+
+## Features
+
+    1. handle three kinds of messages: campstat, mediadeploy, msg ack,
+       other messages will be considered failure
+
+    2. every message sent by DSCS can define three assertion functions called
+       mediadeploy, campstat, ack to test the received messages. In addition,
+       if any of the function is defined, then the test framework will
+       consider that for this sent message, the associated message with the
+       assertion function must be received. On the contrary, if any of them is
+       not defined, the associated message should not be received. ex:
+
+       'msg_send_by_dscs' : { ... },
+       'resp' : {
+           mediadeploy: function(msg) { ... },
+           act: function(msg) { ... }
+       }
+
+       for this test case, when the message defined by 'msg_send_by_dscs' is
+       sent, we expect to receive mediadeploy and ack messages from billboard
+       ONLY! Other cases will be considerd failure
+
+    3. multiple test cases(namely the sent message and its associated assertion
+       functions ) can be concatenated together to test interleaved messages
+
+## Usage
+
+    ./start.sh [test_suite_file_name] # test_suite_file_name is inside test/test_suite
+
+    export ENABLE_PUPPET_SYNC=true # true|TRUE, this will do puppet sync before starting to test
+
+## test suite file naming convention
+
+    they're located in test/test_suit
+
+    1xx.js : test user-defined msgs solely
+    2xx.js : test camp scheduling msgs solely
+
+## Version
+
+	0.0.1

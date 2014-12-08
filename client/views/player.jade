@@ -1,0 +1,298 @@
+script(src='./sha.js')
+		
+#websocketclient
+script.
+	
+	function newHMAC(data, key) {
+		console.log("-===Encryption===-");
+		console.log("-data = "+data);
+		console.log("-key = "+key);
+		var hmacObj = new jsSHA(data, "ASCII");
+		var hmac = hmacObj.getHMAC(key, "ASCII", "SHA-256", "B64");
+		console.log("-Hmac = "+hmac);
+		return hmac;
+	}
+	var webSocket = null;
+	
+	function Campstat (ds_id,camp_id,res_id){
+		this.type = "campstat";
+		this.headers = {
+			"msg_id" : ds_id+"-"+Date.now()
+		};
+	
+		this.obj = [{
+			"rep_ts": new Date(),
+			"camp_id":camp_id,
+			"res_id":res_id,
+		//	"media_id":media_id,
+			"trigger":'R'
+		}];
+	};
+	
+	function Challenge (ds_id){
+		this.type = "challenge";
+		this.headers = {
+			"msg_id" : ds_id+"-"+Date.now()
+		};
+		this.obj = {
+			"challenge": "my challenge string",
+			"software": "ADCA",
+			"version": "1.0"
+		};
+	};
+	
+	function Demographic (ds_id,camp_id){
+		this.type = "demographic";
+		this.headers = {
+			"msg_id" :ds_id+"-"+Date.now()
+		};
+		this.obj = [{
+			"rep_ts": new Date(),
+			"camp_id":camp_id,
+			"uid": 'afaceid',
+			"gender": 1,
+			"age_bracket":3,
+			"interest":10,
+			"cvlib":'v42'
+		}];
+	};
+	
+	function BSevent (ds_id,bs_id){
+		this.type = "blackstick";
+		this.headers = {
+			"msg_id" :ds_id+"-"+Date.now()
+		};
+	
+		this.obj = {
+			"rep_ts": new Date(),
+			"event_id":'42',
+			"msg":"event message",
+			"w_level":42,
+			"bs":bs_id
+		};
+	};
+
+	function MediaDeploy (ds_id, media_id, media_uri){
+		this.type = "mediadeploy";
+		this.headers = {
+			"msg_id" :ds_id+"-"+Date.now()
+		};
+	
+		this.obj = {
+			"rep_ts": new Date(),
+			"progress":42,
+			"status":'P',
+			"uri":media_uri,
+			"trials":1,
+			"media":media_id
+		};
+	};
+		
+	function ACK (msg){
+		this.type = 201;
+		this.headers = {
+			"msg_id" :msg.headers.msg_id
+		};	
+	};
+	
+script.	
+	function ws_uri (ds_id, key, host){
+		var ts = (new Date()).toISOString();
+		
+		var uri = "wss://"+(host||"localhost:443")+"/?id="+ds_id+"&ts="+ts; 				
+		if(!key)
+			console.log("No Key!");
+		else
+		{
+			var sign = newHMAC(ts,key);
+			uri += "&signature="+encodeURIComponent(sign);
+		}
+		return uri;
+	}
+	
+script.
+	function connectWS (ds_id, key, host){
+		var _uri = ws_uri(ds_id, key, host);
+		console.log("connecting to "+_uri);
+		if ("WebSocket" in window)
+			webSocket = new WebSocket(_uri);
+		else // Firefox 7-10
+			webSocket = new MozWebSocket(_uri);
+		
+		var log = "...";
+		document.getElementById("wsdebug").innerHTML = log;
+		
+		webSocket.onmessage = function(msg) {
+			log = "<b>MSG :</b> "+msg.data+"</br>"+log;//JSON.stringify
+			document.getElementById("wsdebug").innerHTML = log;
+			
+			var data = JSON.parse(msg.data);
+			
+			switch(data.type)
+			{
+			case "campaign" :
+				/*make data to send back example*/
+				if(data.obj.sched.length >0)
+				{
+				var campstat = new Campstat(ds_id,data.obj._id,data.obj.sched[0].res_id);
+				document.getElementById("campstatfield").value = JSON.stringify(campstat);
+				}
+				var demog = new Demographic(ds_id,data.obj._id);
+				var mediadeploy = new MediaDeploy(ds_id, data.obj.media._id, data.obj.media.uri[1]);				
+				
+				document.getElementById("demogfield").value = JSON.stringify(demog);
+				document.getElementById("mediadeployfield").value = JSON.stringify(mediadeploy);
+				break;
+			}
+			
+			var ack = new ACK(data);
+			document.getElementById("ackfield").value = JSON.stringify(ack);			
+		};
+		
+		webSocket.onopen = function () {
+			log = "<b>Connected to server!</b></br>"+log;
+			document.getElementById("wsdebug").innerHTML = log;
+			document.getElementById("WSbtn").value = 'Disconnect';
+			document.getElementById("dsid").disabled = true;
+			document.getElementById("dscs").disabled = true;
+			document.getElementById("key").disabled = true;
+			document.getElementById("sendbackbtn").disabled = false;
+			document.getElementById("send_challenge_btn").disabled = false;
+			document.getElementById("send_ack_btn").disabled = false;
+			document.getElementById("send_blackstickevent_btn").disabled = false;
+			document.getElementById("send_demog_btn").disabled = false;
+			document.getElementById("send_campstat_btn").disabled = false;
+			document.getElementById("send_mediadeploy_btn").disabled = false;
+			
+			/*make a blackstick event example*/
+			var blackstickevent = new BSevent(ds_id, ds_id);
+			document.getElementById("blackstickeventfield").value = JSON.stringify(blackstickevent);
+			/* make a challenge example */
+			var challenge = new Challenge(ds_id);
+			document.getElementById("challengefield").value = JSON.stringify(challenge);			
+		};
+		webSocket.onerror = function(data) {
+			log = "<b>ERROR :</b> "+data.ERROR+", "+data.TEXT+"<br/>"+log;
+			document.getElementById("wsdebug").innerHTML = log;
+		};
+		webSocket.onclose = function(data) {
+			log = "<b>Connection closed!</b> "+data.code+", "+data.reason+"</br>"+log;
+			document.getElementById("wsdebug").innerHTML = log;
+			document.getElementById("WSbtn").value = 'Connect';
+			document.getElementById("dscs").disabled = false;
+			document.getElementById("key").disabled = false;
+			document.getElementById("dsid").disabled = false;
+			document.getElementById("sendbackbtn").disabled = true;
+			document.getElementById("send_challenge_btn").disabled = true;
+			document.getElementById("send_ack_btn").disabled = true;
+			document.getElementById("send_blackstickevent_btn").disabled = true;
+			document.getElementById("send_demog_btn").disabled = true;
+			document.getElementById("send_campstat_btn").disabled = true;
+			document.getElementById("send_mediadeploy_btn").disabled = true;
+		};
+	};
+	
+	var disconnectWS = function(){
+		webSocket.disconnect();
+		webSocket.close();
+		delete webSocket;
+		document.getElementById("dsid").disabled = false;
+		document.getElementById("dscs").disabled = false;
+		document.getElementById("key").disabled = false;
+		document.getElementById("WSbtn").value = 'Connect';
+		log = "Disconnected!"+"</br>"+log;
+		document.getElementById("wsdebug").innerHTML = log;
+	};
+
+	var sendWSData = function(form){
+		var data = null;
+	
+		for(var i in form.elements)
+			if(form.elements[i].name == "data")
+				data = form.elements[i].value;
+		
+		if(data)
+			webSocket.send(data);
+		return false;
+	};
+
+script.
+	function WSconn (data){
+		var connected = (data.elements[3].value == "Disconnect");
+		var ds_id = data.elements[0].value;
+		var host = data.elements[1].value;
+		var key = data.elements[2].value;
+	
+		console.log(connected+"  "+ds_id+" "+host+" "+key);
+		if(connected)
+			disconnectWS();
+		else
+			connectWS(ds_id, key, host);
+		return false;
+	}
+	
+p
+		h2 Websocket client connection
+		form(onsubmit="return WSconn(this)")
+			label DS
+				input(id="dsid", type='text', name='dss', value='my_billboard_id', size=40)
+			label host
+				input(id="dscs", type='text', name='host', value='localhost:443', size=40)
+			label key
+				input(id="key", type='text', name='key', value='', size=40)
+			input(type='submit', id='WSbtn', value='Connect')
+		p
+			h3 Message Example
+			table
+				tbody
+					tr
+						td
+							form(onsubmit="return sendWSData(this)")
+								label
+									b Campstat
+								textarea(id="campstatfield", cols="100", rows="3", type='text', name='data', value='', size=80, height=200)
+								input(id="send_campstat_btn", disabled=true, type='submit', value='Send')
+					tr
+						td
+							form(onsubmit="return sendWSData(this)")
+								label
+									b Demographic
+								textarea(id="demogfield", cols="100", rows="3", type='text', name='data', value='', size=80, height=200)
+								input(id="send_demog_btn", disabled=true, type='submit', value='Send')
+					tr
+						td
+							form(onsubmit="return sendWSData(this)")
+								label
+									b Media Deploy
+								textarea(id="mediadeployfield", cols="100", rows="3", type='text', name='data', value='', size=80, height=200)
+								input(id="send_mediadeploy_btn", disabled=true, type='submit', value='Send')
+					tr
+						td
+							form(onsubmit="return sendWSData(this)")
+								label
+									b BlackStick Event
+								textarea(id="blackstickeventfield", cols="100", rows="3", type='text', name='data', value='', size=80, height=200)
+								input(id="send_blackstickevent_btn", disabled=true, type='submit', value='Send')
+					tr
+						td
+							form(onsubmit="return sendWSData(this)")
+								label
+									b Challenge
+								textarea(id="challengefield", cols="100", rows="3", type='text', name='data', value='', size=80, height=200)
+								input(id="send_challenge_btn", disabled=true, type='submit', value='Send')
+					tr
+						td
+							form(onsubmit="return sendWSData(this)")
+								label
+									b Ack
+								textarea(id="ackfield", cols="100", rows="3", type='text', name='data', value='', size=80, height=200)
+								input(id="send_ack_btn", disabled=true, type='submit', value='Send')
+		p
+			form(onsubmit="return sendWSData(this)")
+				label Data to send to dscs
+					input(type='text', name='data', value='{"type" :"campstat/demographic/...", "obj":{ ... }, "headers": {"msg_id":"myMessage"}  }', size=80)
+				input(id="sendbackbtn", disabled=true, type='submit', value='Send back to DSCS')
+		p
+			b Log
+			p(id="wsdebug")
+

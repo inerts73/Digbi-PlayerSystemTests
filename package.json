@@ -1,0 +1,39 @@
+{
+    "name":"digbil-dscs_fake",
+    "description":"Test DSCS for player integratin tests",
+    "version":"0.0.7",
+    "author":"Renaud Sauvain",
+    "maintainers":[
+        "Renaud Sauvain"
+    ],
+    "contributors":[
+    ],
+    "dependencies":{
+        "websocket":"1.0.x",
+        "async":"0.2.x",
+        "request":"2.16.x",
+        "js2xmlparser":"0.1.x",
+        "vows":"0.7.x",
+        "express":"3.4.x",
+        "jade":"0.35.x",
+        "formidable":"1.0.x",
+        "jsonschema":"0.4.0"
+    },
+    "keywords":[
+        "Digbil",
+        "DSCS",
+        "Player",
+        "Test",
+        "fake"
+    ],
+    "scripts":{
+        "test":"bash ./test/test.sh ./200.js"
+    },
+    "main":"./lib/load_test.js",
+    "engine":"node >= 0.8.0",
+    "repository":{
+        "type":"git",
+        "url":"git@github.com:digbil/digbil_player_system_tests.git"
+    },
+    "private":true
+}
